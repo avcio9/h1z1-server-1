@@ -4,6 +4,36 @@ const debug = require("debug")("zonepacketHandlers");
 import fs from "fs";
 
 const hax = {
+  tp: function(server, client, args) {
+    if(args.length < 4){
+      server.sendChatText(client, "Need 3 args: position x, y, z", false);
+      return;
+    }
+    const location = {
+      // unknownWord1: 50,
+      position: [args[1], args[2], args[3], 1],
+      rotation: [10, 20, 30, 1],
+      unknownBool1: true,
+      unknownByte1: 100,
+      unknownBool2: true,
+    };
+    server.sendData(client, "ClientUpdate.UpdateLocation", location);
+    const SendZoneDetails_packet = {
+      zoneName: "Z1",
+      unknownBoolean1: true,
+      zoneType: 4,
+      //skyData: weather,
+      skyData: {},
+      zoneId1: 3905829720,
+      zoneId2: 3905829720,
+      nameId: 7699,
+      unknownBoolean2: true,
+      unknownBoolean3: true,
+    };
+    server.sendData(client, "SendZoneDetails", SendZoneDetails_packet);
+    server.sendData(client, "ClientBeginZoning", {});
+  },
+
   forceNight: function (server, client, args) {
     server.forceTime(1615062252322);
     server.sendChatText(
@@ -149,24 +179,32 @@ const hax = {
   },
   spawnPcModel: function (server, client, args) {
     const guid = server.generateGuid();
-    const transientId = server.getTransientId(client, guid);
+    const characterId = generateCharacterId();
+    const transientId = server.getTransientId(client, characterId);
     debug("spawnPcModel called");
     if (!args[1]) {
       server.sendChatText(client, "[ERROR] You need to specify a model id !");
       return;
     }
     //const choosenModelId = Number(args[1]);
-    const characterId = generateCharacterId();
-    const pc = {
+    
+    debug(`\n\n\n\ncharacterId: ${characterId}\n\n\n\n`);
+    const lightweight = {
       characterId: characterId,
-      guid: guid,
+      guid: characterId,
       transientId: transientId,
       //modelId: choosenModelId,
       position: client.character.state.position,
       identity: {}
     };
-    server.sendData(client, "AddLightweightPc", pc);
-    server._npcs[characterId] = pc; // save npc
+    const full = {
+      fullPcSubDataSchema1: {transientIdMaybe: transientId},
+      array1: [],
+      unknownData1: {transientId: transientId, unknownData1: {}, array1: [], array2: [],},
+    };
+    server.sendData(client, "AddLightweightPc", lightweight);
+    //server.sendData(client, "LightweightToFullPc", full);
+    // server._npcs[characterId] = lightweight; // save npc
   },
   sonic: function (server, client, args) {
     server.sendData(client, "ClientGameSettings", {
@@ -183,6 +221,7 @@ const hax = {
     });
     server.sendChatText(client, "Welcome MR.Hedgehog");
   },
+  /* depreciated ?
   observer: function (server, client, args) {
     server.sendData(client, "PlayerUpdate.RemovePlayer", {
       characterId: client.character.characterId,
@@ -191,6 +230,7 @@ const hax = {
     debug(server._characters);
     server.sendChatText(client, "Delete player, back in observer mode");
   },
+  */
   shutdown: function (server, client, args) {
     server.sendData(client, "WorldShutdownNotice", {
       timeLeft: 0,
@@ -342,6 +382,7 @@ const hax = {
     debug(JSON.stringify(rnd_weather));
     server.changeWeather(client, rnd_weather);
   },
+  /* scale can no longer be updated through PlayerUpdate
   titan: function (server, client, args) {
     server.sendData(client, "PlayerUpdate.UpdateScale", {
       characterId: client.character.characterId,
@@ -370,6 +411,7 @@ const hax = {
     });
     server.sendChatText(client, "Back to normal size");
   },
+  */
 };
 
 export default hax;

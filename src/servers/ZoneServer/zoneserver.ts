@@ -384,6 +384,7 @@ export class ZoneServer extends EventEmitter {
       populations: [0, 0],
     });
 
+    /*
     this.sendData(client, "ClientUpdate.RespawnLocations", {
       unknownFlags: 0,
       locations: [
@@ -443,7 +444,8 @@ export class ZoneServer extends EventEmitter {
         },
       ],
     });
-
+    */
+   
     this.sendData(client, "ClientGameSettings", {
       unknownQword1: "0x0000000000000000",
       unknownBoolean1: true,

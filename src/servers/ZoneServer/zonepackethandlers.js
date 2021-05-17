@@ -1061,25 +1061,12 @@ const packetHandlers = {
   },
   "PlayerUpdate.FullCharacterDataRequest": function (server, client, packet) {
     debug(packet);
+    const guid = packet.data.guid;
+    const transientId = server.getTransientId(client, guid);
     server.sendData(client, "LightweightToFullPc", {
-      attachments: [],
-      effectTags: [],
-      characterVariables: [],
-      resources: [],
-      unknownVector1: [0, 200, 0],
-      unknownVector2: [0, 200, 0],
-      unknownVector4: [0, 200, 0, 1],
-      unknownVector5: [0, 200, 0, 1],
-      unknownData1: {
-        unknownDword1: 0,
-        unknownString1: "",
-        unknownString2: "",
-        unknownDword2: 0,
-        unknownString3: "",
-      },
-      unknownData2: { unknownFloat1: 1.0 },
-      unknownData3: { unknownDword1: 0 },
-      targetData: { targetType: 1 },
+      fullPcSubDataSchema1: {transientIdMaybe: transientId},
+      array1: [],
+      unknownData1: {transientId: transientId, unknownData1: {}, array1: [], array2: [],},
     });
   },
 };
