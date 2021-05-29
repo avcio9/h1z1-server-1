@@ -1172,15 +1172,14 @@ const packetHandlers: any = {
         0,
       ]);
     }
-    if (packet.data.rotation) {
-      // TODO: modify array element beside re-creating it
-      client.character.state.rotation = new Float32Array([
-        packet.data.rotation[0],
-        packet.data.rotation[1],
-        packet.data.rotation[2],
-        packet.data.rotation[3],
-      ]);
-    }
+	if (packet.data.unknown13_float) {
+      client.character.state.rotation = [
+        packet.data.unknown13_float[0],
+        0,
+        0,
+        0,
+      ];
+	}
   },
   "PlayerUpdate.Respawn": function (
     server: ZoneServer,
