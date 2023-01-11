@@ -3,7 +3,7 @@
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
 //   copyright (C) 2020 - 2021 Quentin Gruber
-//   copyright (C) 2021 - 2022 H1emu community
+//   copyright (C) 2021 - 2023 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -25,6 +25,10 @@ import { ExplosiveEntity } from "../classes/explosiveentity";
 import { Npc } from "../classes/npc";
 import { Vehicle2016 as Vehicle } from "../classes/vehicle";
 import { ZoneClient2016 as Client } from "../classes/zoneclient";
+import {
+  characterBuildKitLoadout,
+  characterKitLoadout,
+} from "../data/loadouts";
 import { EquipSlots, Items } from "../models/enums";
 import { ZoneServer2016 } from "../zoneserver";
 import { Command, PermissionLevels } from "./types";
@@ -90,7 +94,7 @@ export const commands: Array<Command> = [
           _spawnedItems: objects,
           _vehicles: vehicles,
           _doors: doors,
-          _props: props,
+          _lootableProps: props,
         } = server;
         const serverVersion = require("../../../../package.json").version;
         server.sendChatText(client, `h1z1-server V${serverVersion}`, true);
@@ -138,7 +142,6 @@ export const commands: Array<Command> = [
       const soeClient = server.getSoeClient(client.soeClientId);
       if (soeClient) {
         const stats = soeClient.getNetworkStats();
-        stats.push(`Ping: ${client.avgPing}ms`);
         for (let index = 0; index < stats.length; index++) {
           const stat = stats[index];
           server.sendChatText(client, stat, index == 0);
@@ -194,7 +197,7 @@ export const commands: Array<Command> = [
               "Down",
               "Up"
             ));
-        server.updateEquipmentSlot(client.character, EquipSlots.CHEST);
+        client.character.updateEquipmentSlot(server, EquipSlots.CHEST);
       }
     },
   },
@@ -363,7 +366,7 @@ export const commands: Array<Command> = [
         server.despawnEntity(object.characterId);
       });
       client.spawnedEntities = [];
-      server._props = {};
+      server._lootableProps = {};
       server._npcs = {};
       server._spawnedItems = {};
       server._vehicles = {};
@@ -665,7 +668,7 @@ export const commands: Array<Command> = [
             1,
           ]),
           client.character.state.lookAt,
-          true
+          Items.IED
         ); // save explosive
       });
     },
@@ -930,7 +933,10 @@ export const commands: Array<Command> = [
           targetClient ? targetClient.character.name : client.character.name
         }`
       );
-      server.lootItem(targetClient ? targetClient : client, item);
+      (targetClient ? targetClient.character : client.character).lootItem(
+        server,
+        item
+      );
     },
   },
   {
@@ -960,7 +966,7 @@ export const commands: Array<Command> = [
     name: "kit",
     permissionLevel: PermissionLevels.ADMIN,
     execute: (server: ZoneServer2016, client: Client, args: any[]) => {
-      server.giveKitItems(client);
+      client.character.equipLoadout(server, characterKitLoadout);
     },
   },
   {
@@ -987,7 +993,7 @@ export const commands: Array<Command> = [
     },
   },
   {
-    name: "respawnloot",
+    name: "spawnloot",
     permissionLevel: PermissionLevels.ADMIN,
     execute: (server: ZoneServer2016, client: Client, args: any[]) => {
       server.worldObjectManager.createLoot(server);
@@ -1079,7 +1085,7 @@ export const commands: Array<Command> = [
     execute: (server: ZoneServer2016, client: Client, args: any[]) => {
       const wep = server.generateItem(Items.WEAPON_REMOVER);
       if (wep && wep.weapon) wep.weapon.ammoCount = 1000;
-      server.lootItem(client, wep);
+      client.character.lootItem(server, wep);
     },
   },
   {
@@ -1445,6 +1451,43 @@ export const commands: Array<Command> = [
         client,
         `Removed all constructions in range of ${Number(args[0])}`
       );
+    },
+  },
+  {
+    name: "build",
+    permissionLevel: PermissionLevels.ADMIN,
+    execute: async (server: ZoneServer2016, client: Client, args: any[]) => {
+      client.character.equipItem(
+        server,
+        server.generateItem(Items.FANNY_PACK_DEV)
+      );
+      client.character.equipLoadout(server, characterBuildKitLoadout);
+      server.sendChatText(client, `Build kit given`);
+    },
+  },
+  {
+    name: "respawnloot",
+    permissionLevel: PermissionLevels.ADMIN,
+    execute: async (server: ZoneServer2016, client: Client, args: any[]) => {
+      for (const characterId in server._spawnedItems) {
+        const item = server._spawnedItems[characterId];
+        if (item.spawnerId > 0) {
+          if (
+            item.item.itemDefinitionId === Items.FUEL_BIOFUEL ||
+            item.item.itemDefinitionId === Items.FUEL_ETHANOL
+          ) {
+            server.deleteEntity(characterId, server._explosives);
+          }
+          server.deleteEntity(characterId, server._spawnedItems);
+          delete server.worldObjectManager._spawnedLootObjects[item.spawnerId];
+        }
+      }
+
+      delete require.cache[require.resolve("../data/lootspawns")];
+      const loottables = require("../data/lootspawns").lootTables;
+      console.log(loottables);
+      server.worldObjectManager.createLoot(server, loottables);
+      server.sendChatText(client, `Respawned loot`);
     },
   },
   //#endregion

@@ -3,7 +3,7 @@
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
 //   copyright (C) 2020 - 2021 Quentin Gruber
-//   copyright (C) 2021 - 2022 H1emu community
+//   copyright (C) 2021 - 2023 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -14,7 +14,6 @@
 import {
   characterResourceData,
   collectionsSchema,
-  containerData,
   currencySchema,
   effectTagsSchema,
   equipmentSlotSchema,
@@ -22,23 +21,22 @@ import {
   fullNpcSchema,
   fullPcSchema,
   itemSchema,
-  //itemWeaponDetailSubSchema1,
-  //itemWeaponDetailSubSchema2,
   lightWeightNpcSchema,
   lightWeightPcSchema,
   loadoutSlotsSchema,
   objectiveSchema,
   packPositionUpdateData,
   packUnsignedIntWith2bitLengthValue,
+  packInteractionComponent,
   readPositionUpdateData,
   readUnsignedIntWith2bitLengthValue,
   recipeData,
   packItemWeaponData,
+  containers,
 } from "./shared";
 import {
   achievementSchema,
   identitySchema,
-  //profileSchema,
   profileSchema,
   rewardBundleSchema,
   skyData,
@@ -2236,15 +2234,7 @@ export const basePackets: any = [
               name: "containers",
               type: "array",
               defaultValue: [],
-              fields: [
-                { name: "unknownDword1", type: "uint32", defaultValue: 0 }, // containerType?
-                {
-                  name: "containerData",
-                  type: "schema",
-                  defaultValue: {},
-                  fields: containerData,
-                },
-              ],
+              fields: containers,
             },
             {
               name: "unknownArray28",
@@ -2821,12 +2811,12 @@ export const basePackets: any = [
     0x8d,
     {
       fields: [
-        { name: "time1", type: "uint64string", defaultValue: "0" },
-        { name: "time2", type: "uint64string", defaultValue: "0" },
+        { name: "clientHoursMs", type: "uint64string", defaultValue: "0" }, // seems like hours since a 12h trip in ms UTC time
+        { name: "clientHoursMs2", type: "uint64string", defaultValue: "0" },
         { name: "clientTime", type: "uint64string", defaultValue: "0" },
         { name: "serverTime", type: "uint64string", defaultValue: "0" },
         { name: "serverTime2", type: "uint64string", defaultValue: "0" },
-        { name: "time3", type: "uint64string", defaultValue: "0" },
+        { name: "time3", type: "uint64string", defaultValue: "0" }, // maybe drift ?
       ],
     },
   ],
@@ -3437,7 +3427,25 @@ export const basePackets: any = [
   ["Ps4PlayGoBase", 0xe8, {}],
   ["SynchronizedTeleportBase", 0xe9, {}],
   ["StaticViewBase", 0xea, {}],
-  ["ReplicationBase", 0xeb, {}],
+  ["ReplicationBase", 0xeb04,
+    {
+      fields: [
+        {
+                name: "transientId",
+                type: "custom",
+                parser: readUnsignedIntWith2bitLengthValue,
+                packer: packUnsignedIntWith2bitLengthValue,
+        },
+        {
+                name: "rawComponent",
+                type: "custom",
+                parser: packInteractionComponent,
+                packer: packInteractionComponent,
+                defaultValue: packInteractionComponent
+        },
+      ],
+    },
+  ],
   ["DatasheetsBase", 0xec, {}],
   ["PlayerWorldTransferRequest", 0xed, {}],
   ["PlayerWorldTransferReply", 0xee, {}],

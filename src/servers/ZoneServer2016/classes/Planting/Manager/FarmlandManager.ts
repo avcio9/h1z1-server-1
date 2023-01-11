@@ -3,7 +3,7 @@
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
 //   copyright (C) 2020 - 2021 Quentin Gruber
-//   copyright (C) 2021 - 2022 H1emu community
+//   copyright (C) 2021 - 2023 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -24,7 +24,7 @@ import { Furrows, Hole, Seed } from "../Model/DataModels";
 import { TemporaryEntity } from "../../temporaryentity";
 import { generateRandomGuid } from "../../../../../utils/utils";
 import { ItemObject } from "../../itemobject";
-import { inventoryItem } from "../../../../../types/zoneserver";
+import { BaseItem } from "../../baseItem";
 
 const debug = require("debug")("PlantingManager");
 
@@ -209,7 +209,7 @@ export class FarmlandManager {
     hole: Hole,
     seed: Seed,
     server: ZoneServer2016
-  ): inventoryItem | null => {
+  ): BaseItem | null => {
     const seedQU = Euler2Quaternion(
       hole.Rotation.Yaw,
       hole.Rotation.Pitch,

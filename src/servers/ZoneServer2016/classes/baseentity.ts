@@ -3,7 +3,7 @@
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
 //   copyright (C) 2020 - 2021 Quentin Gruber
-//   copyright (C) 2021 - 2022 H1emu community
+//   copyright (C) 2021 - 2023 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -77,21 +77,23 @@ export class BaseEntity {
     this.npcRenderDistance = getRenderDistance(actorModelId);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  damage(server: ZoneServer2016, damageInfo: DamageInfo) {
+    // default: do nothing
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   OnPlayerSelect(server: ZoneServer2016, client: ZoneClient2016) {
-    server;
-    client;
     // default: do nothing
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   OnInteractionString(server: ZoneServer2016, client: ZoneClient2016) {
-    server;
-    client;
     // default: do nothing
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   OnProjectileHit(server: ZoneServer2016, damageInfo: DamageInfo) {
-    server;
-    damageInfo; // eslint
     // default: do nothing
   }
 }

@@ -3,7 +3,7 @@
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
 //   copyright (C) 2020 - 2021 Quentin Gruber
-//   copyright (C) 2021 - 2022 H1emu community
+//   copyright (C) 2021 - 2023 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -12,9 +12,13 @@
 // ======================================================================
 
 import { DoorEntity } from "./doorentity";
-import { Items } from "../models/enums";
+import { ConstructionPermissionIds, Items, StringIds } from "../models/enums";
 import { ZoneServer2016 } from "../zoneserver";
 import { ZoneClient2016 } from "./zoneclient";
+import { DamageInfo, OccupiedSlotMap } from "types/zoneserver";
+import { getConstructionSlotId, movePoint } from "../../../utils/utils";
+import { ConstructionParentEntity } from "./constructionparententity";
+import { ConstructionChildEntity } from "./constructionchildentity";
 function getDamageRange(definitionId: number): number {
   switch (definitionId) {
     case Items.METAL_GATE:
@@ -28,18 +32,17 @@ function getDamageRange(definitionId: number): number {
   }
 }
 
-export class constructionDoor extends DoorEntity {
+export class ConstructionDoor extends DoorEntity {
   ownerCharacterId: string;
   password: number = 0;
   grantedAccess: any = [];
   health: number = 1000000;
-  healthPercentage: number = 100;
   parentObjectCharacterId: string;
-  buildingSlot: string;
   itemDefinitionId: number;
-  slot?: string;
+  slot: string;
   damageRange: number;
-  fixedPosition?: Float32Array;
+  fixedPosition: Float32Array;
+  placementTime = Date.now();
   constructor(
     characterId: string,
     transientId: number,
@@ -50,7 +53,6 @@ export class constructionDoor extends DoorEntity {
     itemDefinitionId: number,
     ownerCharacterId: string,
     parentObjectCharacterId: string,
-    BuildingSlot: string,
     slot: string
   ) {
     super(
@@ -65,23 +67,116 @@ export class constructionDoor extends DoorEntity {
     this.ownerCharacterId = ownerCharacterId;
     this.itemDefinitionId = itemDefinitionId;
     this.parentObjectCharacterId = parentObjectCharacterId;
-    this.buildingSlot = BuildingSlot;
-    if (slot) this.slot = slot;
+    this.slot = slot;
     this.profileId = 999; /// mark as construction
     this.damageRange = getDamageRange(this.itemDefinitionId);
+    this.fixedPosition = movePoint(
+      this.state.position,
+      -this.openAngle,
+      this.itemDefinitionId == Items.DOOR_METAL ||
+        this.itemDefinitionId == Items.DOOR_WOOD
+        ? 0.625
+        : 2.5
+    );
   }
+
   pGetConstructionHealth() {
     return {
       characterId: this.characterId,
       health: this.health / 10000,
     };
   }
-  pDamageConstruction(damage: number) {
-    this.health -= damage;
-    this.healthPercentage = this.health / 10000;
+  damage(server: ZoneServer2016, damageInfo: DamageInfo) {
+    // todo: redo this
+    this.health -= damageInfo.damage;
+  }
+
+  destroy(server: ZoneServer2016, destructTime = 0) {
+    server.deleteEntity(
+      this.characterId,
+      server._constructionDoors,
+      242,
+      destructTime
+    );
+    const parent = this.getParent(server);
+    if (!parent) return;
+    let slotMap: OccupiedSlotMap | undefined,
+      updateSecured = false;
+    switch (this.itemDefinitionId) {
+      case Items.METAL_GATE:
+      case Items.DOOR_BASIC:
+      case Items.DOOR_WOOD:
+      case Items.DOOR_METAL:
+        slotMap = parent.occupiedWallSlots;
+        updateSecured = true;
+        break;
+    }
+    if (slotMap) parent.clearSlot(this.getSlotNumber(), slotMap);
+    if (updateSecured) parent.updateSecuredState(server);
+  }
+
+  canUndoPlacement(server: ZoneServer2016, client: ZoneClient2016) {
+    return (
+      this.getHasPermission(
+        server,
+        client.character.characterId,
+        ConstructionPermissionIds.BUILD
+      ) &&
+      Date.now() < this.placementTime + 120000 &&
+      client.character.getEquippedWeapon().itemDefinitionId ==
+        Items.WEAPON_HAMMER_DEMOLITION
+    );
+  }
+
+  getParent(server: ZoneServer2016): ConstructionChildEntity | undefined {
+    return (
+      server._constructionSimple[this.parentObjectCharacterId] ||
+      server._constructionFoundations[this.parentObjectCharacterId]
+    );
+  }
+
+  getParentFoundation(
+    server: ZoneServer2016
+  ): ConstructionParentEntity | undefined {
+    const parent = this.getParent(server);
+    if (!parent) return;
+    if (server._constructionSimple[parent.characterId]) {
+      return server._constructionSimple[parent.characterId].getParentFoundation(
+        server
+      );
+    }
+    return server._constructionFoundations[parent.characterId];
+  }
+
+  getHasPermission(
+    server: ZoneServer2016,
+    characterId: string,
+    permission: ConstructionPermissionIds
+  ) {
+    return (
+      this.getParentFoundation(server)?.getHasPermission(
+        server,
+        characterId,
+        permission
+      ) || false
+    );
+  }
+
+  getSlotNumber() {
+    if (!this.slot) return 0;
+    return getConstructionSlotId(this.slot);
   }
 
   OnPlayerSelect(server: ZoneServer2016, client: ZoneClient2016) {
+    if (this.canUndoPlacement(server, client)) {
+      this.destroy(server);
+      client.character.lootItem(
+        server,
+        server.generateItem(this.itemDefinitionId)
+      );
+      return;
+    }
+
     if (
       this.password != 0 &&
       this.ownerCharacterId != client.character.characterId &&
@@ -140,37 +235,21 @@ export class constructionDoor extends DoorEntity {
       }
     );
     this.isOpen = !this.isOpen;
-    if (server._constructionFoundations[this.parentObjectCharacterId]) {
-      this.isOpen
-        ? server._constructionFoundations[
-            this.parentObjectCharacterId
-          ].changePerimeters(
-            server,
-            this.buildingSlot,
-            new Float32Array([0, 0, 0, 0])
-          )
-        : server._constructionFoundations[
-            this.parentObjectCharacterId
-          ].changePerimeters(server, this.buildingSlot, this.state.position);
-    } else if (server._constructionSimple[this.parentObjectCharacterId]) {
-      this.isOpen
-        ? server._constructionSimple[
-            this.parentObjectCharacterId
-          ].changePerimeters(
-            server,
-            "LoveShackDoor",
-            new Float32Array([0, 0, 0, 0])
-          )
-        : server._constructionSimple[
-            this.parentObjectCharacterId
-          ].changePerimeters(server, "LoveShackDoor", this.state.position);
+
+    const parent = this.getParent(server);
+    if (parent) {
+      parent.updateSecuredState(server);
     }
   }
 
   OnInteractionString(server: ZoneServer2016, client: ZoneClient2016) {
+    if (this.canUndoPlacement(server, client)) {
+      server.undoPlacementInteractionString(this, client);
+      return;
+    }
     server.sendData(client, "Command.InteractionString", {
       guid: this.characterId,
-      stringId: 8944,
+      stringId: StringIds.OPEN_AND_LOCK,
     });
   }
 }

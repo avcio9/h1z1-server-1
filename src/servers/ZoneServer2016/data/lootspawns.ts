@@ -1,3 +1,16 @@
+// ======================================================================
+//
+//   GNU GENERAL PUBLIC LICENSE
+//   Version 3, 29 June 2007
+//   copyright (C) 2020 - 2021 Quentin Gruber
+//   copyright (C) 2021 - 2023 H1emu community
+//
+//   https://github.com/QuentinGruber/h1z1-server
+//   https://www.npmjs.com/package/h1z1-server
+//
+//   Based on https://github.com/psemu/soe-network
+// ======================================================================
+
 import { ContainerLootSpawner, LootSpawner } from "types/zoneserver";
 import { Items } from "../models/enums";
 
@@ -512,7 +525,7 @@ export const lootTables: { [lootSpawner: string]: LootSpawner } = {
 
   // #region RESIDENTIAL
   "ItemSpawnerResidential_Tier00.adr": {
-    spawnChance: 30,
+    spawnChance: 50,
     items: [
       {
         item: Items.DUCT_TAPE,
@@ -747,7 +760,7 @@ export const lootTables: { [lootSpawner: string]: LootSpawner } = {
         },
       },
       {
-        item: Items.BACKPACK,
+        item: Items.BACKPACK_MILITARY_TAN,
         weight: 100,
         spawnCount: {
           min: 1,
@@ -1798,16 +1811,638 @@ export const containerLootSpawners: {
   [lootSpawner: string]: ContainerLootSpawner;
 } = {
   // TODO WHEN CONTAINERS WORK
-  "test-container": {
+  "Wrecked Car": {
     spawnChance: 100,
-    maxItems: 5,
+    maxItems: 3, // cant be higher than length of items array below
     items: [
       {
-        item: Items.AMMO_223,
-        weight: 100,
+        item: Items.METAL_SCRAP,
+        weight: 50,
         spawnCount: {
           min: 1,
-          max: 5,
+          max: 2,
+        },
+      },
+      {
+        item: Items.METAL_SHEET,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.METAL_PIPE,
+        weight: 30,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Wrecked Van": {
+    spawnChance: 100,
+    maxItems: 3,
+    items: [
+      {
+        item: Items.METAL_SCRAP,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.METAL_SHEET,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.METAL_PIPE,
+        weight: 30,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Wrecked Truck": {
+    spawnChance: 100,
+    maxItems: 4,
+    items: [
+      {
+        item: Items.METAL_SCRAP,
+        weight: 35,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.METAL_SHEET,
+        weight: 35,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.TARP,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.METAL_PIPE,
+        weight: 20,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Weapons Locker": {
+    spawnChance: 100,
+    maxItems: 1,
+    items: [
+      {
+        item: Items.WEAPON_AR15,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.AMMO_223,
+        weight: 25,
+        spawnCount: {
+          min: 3,
+          max: 11,
+        },
+      },
+    ],
+  },
+  "Locker": {
+    spawnChance: 100,
+    maxItems: 1,
+    items: [
+      {
+        item: Items.BACKPACK_MILITARY_TAN,
+        weight: 35,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.BACKPACK_BLUE_ORANGE,
+        weight: 35,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.KEVLAR_DEFAULT,
+        weight: 35,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Desk": {
+    spawnChance: 100,
+    maxItems: 2,
+    items: [
+      {
+        item: Items.CLOTH,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.HAT_CAP,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Cabinets": {
+    spawnChance: 100,
+    maxItems: 2,
+    items: [
+      {
+        item: Items.CLOTH,
+        weight: 40,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.AMMO_45,
+        weight: 40,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.SUGAR,
+        weight: 45,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.SALT,
+        weight: 40,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Cabinets Cube": {
+    spawnChance: 100,
+    maxItems: 1,
+    items: [
+      {
+        item: Items.SALT,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Cabinets Kitchen": {
+    spawnChance: 100,
+    maxItems: 4,
+    items: [
+      {
+        item: Items.SALT,
+        weight: 35,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.SUGAR,
+        weight: 45,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.GROUND_COFFEE,
+        weight: 45,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.CANNED_FOOD01,
+        weight: 45,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.WATER_EMPTY,
+        weight: 45,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Cabinets Bathroom": {
+    spawnChance: 100,
+    maxItems: 3,
+    items: [
+      {
+        item: Items.ANTIBIOTICS,
+        weight: 45,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.VITAMINS,
+        weight: 45,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.BANDAGE,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.FIRST_AID,
+        weight: 15,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Tool Cabinet": {
+    spawnChance: 100,
+    maxItems: 3,
+    items: [
+      {
+        item: Items.WEAPON_CROWBAR,
+        weight: 40,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.METAL_PIPE,
+        weight: 40,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.WEAPON_PIPE,
+        weight: 40,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+        },
+      {
+        item: Items.WEAPON_WRENCH,
+        weight: 40,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.WEAPON_HAMMER_DEMOLITION,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Dumpster": {
+    spawnChance: 100,
+    maxItems: 3,
+    items: [
+      {
+        item: Items.CLOTH,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 3,
+        },
+      },
+      {
+        item: Items.TWINE,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.FERTILIZER,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.CHARCOAL,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Garbage Can": {
+    spawnChance: 100,
+    maxItems: 3,
+    items: [
+      {
+        item: Items.CLOTH,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 3,
+        },
+      },
+      {
+        item: Items.TWINE,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.FERTILIZER,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.CHARCOAL,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "File Cabinet": {
+    spawnChance: 100,
+    maxItems: 2,
+    items: [
+      {
+        item: Items.SUGAR,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.AMMO_380,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+      },
+      {
+        item: Items.AMMO_44,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 2,
+        },
+        },
+    ],
+    },
+  "Fridge": {
+    spawnChance: 100,
+    maxItems: 2,
+    items: [
+      {
+        item: Items.CANNED_FOOD01,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.MEAT_VENISON,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.WATER_STAGNANT,
+        weight: 25,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Ottoman": {
+    spawnChance: 100,
+    maxItems: 3,
+    items: [
+      {
+        item: Items.SHIRT_DEFAULT,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.PANTS_DEFAULT,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.CLOTH,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 4,
+        },
+      },
+      {
+        item: Items.HAT_CAP,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.WEAPON_FLASHLIGHT,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.TWINE,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Dresser": {
+    spawnChance: 100,
+    maxItems: 3,
+    items: [
+      {
+        item: Items.SHIRT_DEFAULT,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.PANTS_DEFAULT,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.CLOTH,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 4,
+        },
+      },
+      {
+        item: Items.HAT_CAP,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.TWINE,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+    ],
+  },
+  "Armoire": {
+    spawnChance: 100,
+    maxItems: 3,
+    items: [
+      {
+        item: Items.SHIRT_DEFAULT,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.PANTS_DEFAULT,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.CLOTH,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 4,
+        },
+      },
+      {
+        item: Items.HAT_CAP,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
+        },
+      },
+      {
+        item: Items.TWINE,
+        weight: 50,
+        spawnCount: {
+          min: 1,
+          max: 1,
         },
       },
     ],

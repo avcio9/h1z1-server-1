@@ -3,7 +3,7 @@
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
 //   copyright (C) 2020 - 2021 Quentin Gruber
-//   copyright (C) 2021 - 2022 H1emu community
+//   copyright (C) 2021 - 2023 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -19,10 +19,11 @@ import {
   ResourceTypes,
   VehicleIds,
 } from "../models/enums";
-import { BaseFullCharacter } from "./basefullcharacter";
 import { ZoneClient2016 } from "./zoneclient";
 import { ZoneServer2016 } from "../zoneserver";
 import { DamageInfo } from "types/zoneserver";
+import { BaseLootableEntity } from "./baselootableentity";
+import { vehicleDefaultLoadouts } from "../data/loadouts";
 
 function getVehicleId(ModelId: number) {
   switch (ModelId) {
@@ -60,7 +61,22 @@ function getVehicleLoadoutId(vehicleId: number) {
   }
 }
 
-export class Vehicle2016 extends BaseFullCharacter {
+function getDefaultLoadout(loadoutId: number) {
+  switch (loadoutId) {
+    case LoadoutIds.VEHICLE_OFFROADER:
+      return vehicleDefaultLoadouts.offroader;
+    case LoadoutIds.VEHICLE_PICKUP:
+      return vehicleDefaultLoadouts.pickup;
+    case LoadoutIds.VEHICLE_POLICECAR:
+      return vehicleDefaultLoadouts.policecar;
+    case LoadoutIds.VEHICLE_ATV:
+      return vehicleDefaultLoadouts.atv;
+    default:
+      return [];
+  }
+}
+
+export class Vehicle2016 extends BaseLootableEntity {
   isManaged: boolean = false;
   manager?: any;
   destroyedEffect: number = 0;
@@ -97,6 +113,7 @@ export class Vehicle2016 extends BaseFullCharacter {
     };
     this.vehicleId = getVehicleId(this.actorModelId);
     this.loadoutId = getVehicleLoadoutId(this.vehicleId);
+    this.defaultLoadout = getDefaultLoadout(this.loadoutId);
     this.isInvulnerable =
       this.vehicleId == VehicleIds.SPECTATE ||
       this.vehicleId == VehicleIds.PARACHUTE;
@@ -343,10 +360,11 @@ export class Vehicle2016 extends BaseFullCharacter {
     this._resources[ResourceIds.CONDITION] -= damageInfo.damage;
 
     const client = server.getClientByCharId(damageInfo.entity);
-    if (!client) return;
-    client.character.addCombatlogEntry(
-      server.generateDamageRecord(this.characterId, damageInfo, oldHealth)
-    );
+    if (client) {
+      client.character.addCombatlogEntry(
+        server.generateDamageRecord(this.characterId, damageInfo, oldHealth)
+      );
+    }
 
     if (this._resources[ResourceIds.CONDITION] <= 0) {
       server.destroyVehicle(
@@ -399,6 +417,7 @@ export class Vehicle2016 extends BaseFullCharacter {
       ) {
         this.destroyedState = 0;
         server._vehicles[this.characterId].destroyedEffect = 0;
+        allowSend = true;
       }
 
       if (allowSend) {
@@ -453,7 +472,7 @@ export class Vehicle2016 extends BaseFullCharacter {
       "LightweightToFullVehicle",
       this.pGetFullVehicle(server)
     );
-    server.updateLoadout(this);
+    this.updateLoadout(server);
     // prevents cars from spawning in under the map for other characters
     /*
     server.sendData(client, "PlayerUpdatePosition", {
