@@ -2,7 +2,8 @@
 //
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
-//   copyright (c) 2021 Quentin Gruber
+//   copyright (C) 2020 - 2021 Quentin Gruber
+//   copyright (C) 2021 - 2024 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -10,9 +11,10 @@
 //   Based on https://github.com/psemu/soe-network
 // ======================================================================
 
-import { EventEmitter } from "events";
+import { EventEmitter } from "node:events";
 import { GatewayClient } from "./gatewayclient";
 import { H1Z1Protocol as ZoneProtocol } from "../protocols/h1z1protocol";
+
 const debug = require("debug")("ZoneClient");
 
 export class ZoneClient extends EventEmitter {
@@ -25,6 +27,7 @@ export class ZoneClient extends EventEmitter {
   _referenceData: any;
   _environment: string;
   _serverId: number;
+
   constructor(
     serverAddress: string,
     serverPort: number,
@@ -52,9 +55,9 @@ export class ZoneClient extends EventEmitter {
     this._environment = "";
     this._serverId = 0;
 
-    var me = this;
+    const me = this;
 
-    var n = 0;
+    let n = 0;
     this._gatewayClient.on(
       "tunneldata",
       (err: string, data: Buffer, flags: any) => {
@@ -62,10 +65,10 @@ export class ZoneClient extends EventEmitter {
 
         n++;
         //fs.writeFileSync("dump/tunneldata_" + n + ".dat", data);
-        var packet;
+        let packet;
 
         try {
-          packet = this._protocol.parse(data, flags, false, me._referenceData);
+          packet = this._protocol.parse(data, flags);
         } catch (e) {
           //fs.writeFileSync("tunneldata_" + n + ".dat", data);
           debug("Failed parsing tunnel data: tunneldata_" + n + ".dat");
@@ -111,13 +114,13 @@ export class ZoneClient extends EventEmitter {
 
               this._gatewayClient.sendTunnelData(
                 this._protocol.pack("ClientInitializationDetails", {
-                  unknownDword1: 7200,
+                  unknownDword1: 7200
                 }),
                 0
               );
               this._gatewayClient.sendTunnelData(
                 this._protocol.pack("SetLocale", {
-                  locale: "en_US",
+                  locale: "en_US"
                 }),
                 1
               );
@@ -153,12 +156,16 @@ export class ZoneClient extends EventEmitter {
       me.emit("disconnect", err, result);
     });
   }
+
   connect() {
     debug("Connecting to gateway server");
     this._gatewayClient.connect();
   }
+
   login() {}
+
   disconnect() {}
+
   setReferenceData(data: any) {
     this._referenceData = data;
   }

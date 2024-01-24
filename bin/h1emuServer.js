@@ -1,2 +1,0 @@
-require("./loginServer");
-require("./zoneServer");

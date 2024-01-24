@@ -2,7 +2,8 @@
 //
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
-//   copyright (c) 2021 Quentin Gruber
+//   copyright (C) 2020 - 2021 Quentin Gruber
+//   copyright (C) 2021 - 2024 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -24,7 +25,7 @@ const serverField: any[] = [
   { name: "serverInfo", type: "string" },
   { name: "populationLevel", type: "uint32" },
   { name: "populationData", type: "string" },
-  { name: "allowedAccess", type: "boolean" },
+  { name: "allowedAccess", type: "boolean" }
 ];
 
 const packets: any[] = [
@@ -38,9 +39,9 @@ const packets: any[] = [
         { name: "Locale", type: "uint32", defaultValue: 0 },
         { name: "ThirdPartyAuthTicket", type: "uint32", defaultValue: 0 },
         { name: "ThirdPartyUserId", type: "uint32", defaultValue: 0 },
-        { name: "ThirdPartyId", type: "uint32", defaultValue: 0 },
-      ],
-    },
+        { name: "ThirdPartyId", type: "uint32", defaultValue: 0 }
+      ]
+    }
   ],
   [
     "LoginReply",
@@ -52,23 +53,23 @@ const packets: any[] = [
         { name: "isMember", type: "boolean" },
         { name: "isInternal", type: "boolean" },
         { name: "namespace", type: "string" },
-        { name: "ApplicationPayload", type: "byteswithlength" },
-      ],
-    },
+        { name: "applicationPayload", type: "byteswithlength" }
+      ]
+    }
   ],
   [
     "Logout",
     0x03,
     {
-      fields: [],
-    },
+      fields: []
+    }
   ],
   [
     "ForceDisconnect",
     0x04,
     {
-      fields: [{ name: "reason", type: "uint32", defaultValue: 1 }],
-    },
+      fields: [{ name: "reason", type: "uint32", defaultValue: 1 }]
+    }
   ],
   [
     "CharacterCreateRequest",
@@ -85,11 +86,11 @@ const packets: any[] = [
             { name: "headType", type: "uint32" },
             { name: "profileType", type: "uint32" },
             { name: "gender", type: "uint32" },
-            { name: "characterName", type: "string" },
-          ],
-        },
-      ],
-    },
+            { name: "characterName", type: "string" }
+          ]
+        }
+      ]
+    }
   ],
   [
     "CharacterCreateReply",
@@ -97,16 +98,16 @@ const packets: any[] = [
     {
       fields: [
         { name: "status", type: "uint32" },
-        { name: "characterId", type: "uint64" },
-      ],
-    },
+        { name: "characterId", type: "int64string" }
+      ]
+    }
   ],
   [
     "CharacterLoginRequest",
     0x07,
     {
       fields: [
-        { name: "characterId", type: "uint64" },
+        { name: "characterId", type: "int64string" },
         { name: "serverId", type: "uint32" },
         { name: "status", type: "uint32", defaultValue: 0 },
         {
@@ -115,18 +116,18 @@ const packets: any[] = [
           fields: [
             { name: "locale", type: "string" },
             { name: "localeId", type: "uint32" },
-            { name: "preferredGatewayId", type: "uint32" },
-          ],
-        },
-      ],
-    },
+            { name: "preferredGatewayId", type: "uint32" }
+          ]
+        }
+      ]
+    }
   ],
   [
     "CharacterLoginReply",
     0x08,
     {
       fields: [
-        { name: "unknownQword1", type: "uint64" },
+        { name: "unknownQword1", type: "int64string" },
         { name: "unknownDword1", type: "uint32" },
         { name: "unknownDword2", type: "uint32" },
         { name: "status", type: "uint32" },
@@ -137,40 +138,40 @@ const packets: any[] = [
             { name: "serverAddress", type: "string" },
             { name: "serverTicket", type: "string" },
             { name: "encryptionKey", type: "byteswithlength" },
-            { name: "guid", type: "uint64" },
-            { name: "unknownQword2", type: "uint64" },
-            { name: "stationName", type: "string" },
-            { name: "characterName", type: "string" },
-            { name: "unknownString", type: "string" },
-          ],
-        },
-      ],
-    },
+            { name: "guid", type: "int64string" },
+            { name: "unknownQword2", type: "int64string", defaultValue: "" },
+            { name: "stationName", type: "string", defaultValue: "" },
+            { name: "characterName", type: "string", defaultValue: "" },
+            { name: "unknownString", type: "string", defaultValue: "" }
+          ]
+        }
+      ]
+    }
   ],
   [
     "CharacterDeleteRequest",
     0x09,
     {
-      fields: [{ name: "characterId", type: "uint64" }],
-    },
+      fields: [{ name: "characterId", type: "int64string" }]
+    }
   ],
   [
     "CharacterDeleteReply",
     0x0a,
     {
       fields: [
-        { name: "characterId", type: "uint64" },
+        { name: "characterId", type: "int64string" },
         { name: "status", type: "uint32" },
-        { name: "Payload", type: "string" },
-      ],
-    },
+        { name: "Payload", type: "string" }
+      ]
+    }
   ],
   [
     "CharacterSelectInfoRequest",
     0x0b,
     {
-      fields: [],
-    },
+      fields: []
+    }
   ],
   [
     "CharacterSelectInfoReply",
@@ -183,24 +184,32 @@ const packets: any[] = [
           name: "characters",
           type: "array",
           fields: [
-            { name: "characterId", type: "uint64" },
+            { name: "characterId", type: "int64string" },
             { name: "serverId", type: "uint32" },
-            { name: "lastLoginDate", type: "uint64" },
-            { name: "nullField", type: "uint32" },
-            { name: "status", type: "uint32" },
+            {
+              name: "lastLoginDate",
+              type: "int64string",
+              defaultValue: "0x0000000000000001"
+            },
+            { name: "nullField", type: "uint32", defaultValue: 0 },
+            { name: "status", type: "uint32", defaultValue: 1 },
             {
               name: "payload",
               type: "byteswithlength",
               fields: [
                 { name: "name", type: "string" },
-                { name: "empireId", type: "uint8" },
-                { name: "battleRank", type: "uint32" },
-                { name: "nextBattleRankPercent", type: "uint32" },
-                { name: "headId", type: "uint32" },
-                { name: "modelId", type: "uint32" },
-                { name: "gender", type: "uint32" },
-                { name: "profileId", type: "uint32" },
-                { name: "unknownDword1", type: "uint32" },
+                { name: "empireId", type: "uint8", defaultValue: 1 },
+                { name: "battleRank", type: "uint32", defaultValue: 1 },
+                {
+                  name: "nextBattleRankPercent",
+                  type: "uint32",
+                  defaultValue: 1
+                },
+                { name: "headId", type: "uint32", defaultValue: 1 },
+                { name: "modelId", type: "uint32", defaultValue: 9240 },
+                { name: "gender", type: "uint32", defaultValue: 1 },
+                { name: "profileId", type: "uint32", defaultValue: 1 },
+                { name: "unknownDword1", type: "uint32", defaultValue: 1 },
                 {
                   name: "loadoutData",
                   type: "schema",
@@ -211,8 +220,8 @@ const packets: any[] = [
                       type: "schema",
                       fields: [
                         { name: "unknownDword1", type: "uint32" },
-                        { name: "unknownByte1", type: "uint8" },
-                      ],
+                        { name: "unknownByte1", type: "uint8" }
+                      ]
                     },
                     { name: "unknownDword1", type: "uint32" },
                     {
@@ -220,8 +229,8 @@ const packets: any[] = [
                       type: "schema",
                       fields: [
                         { name: "unknownDword1", type: "uint32" },
-                        { name: "loadoutName", type: "string" },
-                      ],
+                        { name: "loadoutName", type: "string" }
+                      ]
                     },
                     { name: "tintItemId", type: "uint32" },
                     { name: "unknownDword2", type: "uint32" },
@@ -246,26 +255,26 @@ const packets: any[] = [
                                   name: "attachments",
                                   type: "array",
                                   fields: [
-                                    { name: "attachmentId", type: "uint32" },
-                                  ],
+                                    { name: "attachmentId", type: "uint32" }
+                                  ]
                                 },
                                 {
                                   name: "attachmentClasses",
                                   type: "array",
                                   fields: [
                                     { name: "classId", type: "uint32" },
-                                    { name: "attachmentId", type: "uint32" },
-                                  ],
-                                },
-                              ],
+                                    { name: "attachmentId", type: "uint32" }
+                                  ]
+                                }
+                              ]
                             },
                             { name: "tintItemId", type: "uint32" },
-                            { name: "itemSlot", type: "uint32" },
-                          ],
-                        },
-                      ],
-                    },
-                  ],
+                            { name: "itemSlot", type: "uint32" }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
                 },
                 {
                   name: "itemDefinitions",
@@ -325,10 +334,10 @@ const packets: any[] = [
                         { name: "clientUseRequirementId", type: "uint32" },
                         { name: "overrideAppearance", type: "string" },
                         { name: "unknownDword19", type: "uint32" },
-                        { name: "clientUseRequirementId2", type: "uint32" },
-                      ],
-                    },
-                  ],
+                        { name: "clientUseRequirementId2", type: "uint32" }
+                      ]
+                    }
+                  ]
                 },
                 {
                   name: "attachmentDefinitions",
@@ -353,32 +362,36 @@ const packets: any[] = [
                             { bit: 4, name: "bit4" },
                             { bit: 5, name: "bit5" },
                             { bit: 6, name: "bit6" },
-                            { bit: 7, name: "required" },
-                          ],
+                            { bit: 7, name: "required" }
+                          ]
                         },
                         {
                           name: "classes",
                           type: "array",
-                          elementType: "uint32",
-                        },
-                      ],
-                    },
-                  ],
+                          elementType: "uint32"
+                        }
+                      ]
+                    }
+                  ]
                 },
-                { name: "lastUseDate", type: "uint64" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
+                {
+                  name: "lastUseDate",
+                  type: "int64string",
+                  defaultValue: "0x0000000000000001"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
   ],
   [
     "ServerListRequest",
     0x0d,
     {
-      fields: [],
-    },
+      fields: []
+    }
   ],
   [
     "ServerListReply",
@@ -388,58 +401,38 @@ const packets: any[] = [
         {
           name: "servers",
           type: "array",
-          fields: serverField,
-        },
-      ],
-    },
+          fields: serverField
+        }
+      ]
+    }
   ],
   [
     "ServerUpdate",
     0x0f,
     {
-      fields: serverField,
-    },
+      fields: serverField
+    }
   ],
   [
     "TunnelAppPacketClientToServer",
     0x10,
     {
       fields: [
-        { name: "serverId", type: "uint32" },
-        { name: "unknown1", type: "uint32" },
-        {
-          name: "payload",
-          type: "byteswithlength",
-          fields: [
-            { name: "characterName", type: "string" },
-            { name: "unknown2", type: "uint32" },
-          ],
-        },
-      ],
-    },
+        /* loginTunnelPackets.ts */
+      ]
+    }
   ],
   [
     "TunnelAppPacketServerToClient",
     0x11,
     {
       fields: [
-        { name: "serverId", type: "uint32" },
-        { name: "unknown1", type: "uint32" },
-
-        {
-          name: "payload",
-          type: "byteswithlength",
-          fields: [
-            { name: "unknown1", type: "uint32" },
-            { name: "characterName", type: "string" },
-            { name: "unknown2", type: "uint32" },
-          ],
-        },
-      ],
-    },
+        /* loginTunnelPackets.ts */
+      ]
+    }
   ],
   ["CharacterTransferRequest", 0x12, {}],
-  ["CharacterTransferReply", 0x13, {}],
+  ["CharacterTransferReply", 0x13, {}]
 ];
 
 export const [packetTypes, packetDescriptors] = PacketTableBuild(packets);

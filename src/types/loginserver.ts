@@ -1,52 +1,24 @@
-export interface Client {
-  sessionId: number;
-  loginSessionId: string;
-  address: string;
-  port: number;
-  crcSeed: number;
-  crcLength: number;
-  clientUdpLength: number;
-  serverUdpLength: number;
-  sequences: any;
-  compression: number;
-  useEncryption: boolean;
-  protocolName: string;
-  outQueue: any;
-  outOfOrderPackets: any;
-  nextAck: number;
-  lastAck: number;
-  serverUpdateTimer: ReturnType<typeof setTimeout>;
-  inputStream: () => void;
-  outputStream: () => void;
-  outQueueTimer: () => void;
-  ackTimer: () => void;
-  outOfOrderTimer: () => void;
-}
+// ======================================================================
+//
+//   GNU GENERAL PUBLIC LICENSE
+//   Version 3, 29 June 2007
+//   copyright (C) 2020 - 2021 Quentin Gruber
+//   copyright (C) 2021 - 2024 H1emu community
+//
+//   https://github.com/QuentinGruber/h1z1-server
+//   https://www.npmjs.com/package/h1z1-server
+//
+//   Based on https://github.com/psemu/soe-network
+// ======================================================================
 
-export interface SoeServer {
-  on: (arg0: string, arg1: any) => void;
-  start: (
-    compression: any,
-    crcSeed: any,
-    crcLength: any,
-    udpLength: any
-  ) => void;
-  stop: () => void;
-  _sendPacket: (
-    client: Client,
-    packetName: string,
-    packet: any,
-    prioritize?: boolean | undefined
-  ) => void;
-  sendAppData: (arg0: Client, arg1: any, arg2: undefined | any) => void;
-  toggleEncryption: (arg0: Client) => void;
-  setEncryption: (client: Client, value: boolean) => void;
-  deleteClient: (client: Client) => void;
-}
+import { CONNECTION_REJECTION_FLAGS } from "../utils/enums";
 
 export interface GameServer {
   serverId: number;
   serverState: number;
+  serverAddress: string;
+  populationNumber: number;
+  maxPopulationNumber: number;
   locked: boolean;
   name: string;
   nameId: number;
@@ -57,4 +29,25 @@ export interface GameServer {
   populationLevel: number;
   populationData: string;
   allowedAccess: boolean;
+  isDisabled: boolean;
+}
+
+export interface BannedUser {
+  name: string;
+  loginSessionId: string;
+  IP : string;
+  active: boolean;
+}
+
+
+export interface ConnectionAllowed {
+  status: 0|1;
+  rejectionFlag?: CONNECTION_REJECTION_FLAGS
+  message?: string;
+}
+
+export interface UserSession {
+  serverId: number;
+  authKey: string;
+  guid: string;
 }

@@ -2,7 +2,8 @@
 //
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
-//   copyright (c) 2021 Quentin Gruber
+//   copyright (C) 2020 - 2021 Quentin Gruber
+//   copyright (C) 2021 - 2024 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -10,151 +11,190 @@
 //   Based on https://github.com/psemu/soe-network
 // ======================================================================
 
-import { EventEmitter } from "events";
-import { createDecipheriv, Decipher } from "crypto";
+import { EventEmitter } from "node:events";
+import { RC4 } from "h1emu-core";
+import { wrappedUint16 } from "../../utils/utils";
+import {
+  DATA_HEADER_SIZE,
+  MAX_SEQUENCE,
+  MAX_UINT8
+} from "../../utils/constants";
 
 const debug = require("debug")("SOEInputStream");
-
+type appData = { payload: Buffer; isFragment: boolean };
 export class SOEInputStream extends EventEmitter {
-  _sequences: Array<number>;
-  _nextSequence: number;
-  _lastAck: number;
-  _nextFragment: number;
-  _lastProcessedFragment: number;
-  _fragments: Array<any>;
-  _useEncryption: boolean;
-  _rc4: Decipher;
+  _nextSequence: wrappedUint16 = new wrappedUint16(0);
+  _lastAck: wrappedUint16 = new wrappedUint16(-1);
+  _appDataMap: Map<number, appData> = new Map();
+  _useEncryption: boolean = false;
+  _lastProcessedSequence: number = -1;
+  _rc4: RC4;
+  has_cpf: boolean = false;
+  cpf_totalSize: number = -1;
+  cpf_dataSize: number = -1;
+  cpf_dataWithoutHeader!: Buffer;
+  cpf_processedFragmentsSequences: number[] = [];
 
-  constructor(cryptoKey: string) {
+  constructor(cryptoKey: Uint8Array) {
     super();
-    this._sequences = [];
-    this._nextSequence = -1;
-    this._lastAck = -1;
-    this._nextFragment = 0;
-    this._lastProcessedFragment = -1;
-    this._fragments = [];
-    this._useEncryption = false;
-    this._rc4 = createDecipheriv("rc4", cryptoKey, "");
+    this._rc4 = new RC4(cryptoKey);
   }
 
-  _processDataFragments(): void {
-    const nextFragment = (this._lastProcessedFragment + 1) & 0xffff,
-      fragments = this._fragments,
-      head = fragments[nextFragment];
-    let data,
-      totalSize,
-      dataSize,
-      fragment,
-      appData = [],
-      k;
-    if (head) {
-      if (head.singlePacket) {
-        this._lastProcessedFragment = nextFragment;
-        appData = parseChannelPacketData(head);
-        fragments[nextFragment] = null;
-      } else {
-        totalSize = head.readUInt32BE(0);
-        dataSize = head.length - 4;
+  private processSingleData(
+    dataToProcess: appData,
+    sequence: number
+  ): Array<Buffer> {
+    this._appDataMap.delete(sequence);
+    this._lastProcessedSequence = sequence;
+    return parseChannelPacketData(dataToProcess.payload);
+  }
 
-        data = ZeroBuffer(totalSize);
-        head.copy(data, 0, 4);
+  private processFragmentedData(firstPacketSequence: number): Array<Buffer> {
+    // cpf == current processed fragment
+    if (!this.has_cpf) {
+      const firstPacket = this._appDataMap.get(firstPacketSequence) as appData; // should be always defined
+      // the total size is written has a uint32 at the first packet of a fragmented data
+      this.cpf_totalSize = firstPacket.payload.readUInt32BE(0);
+      this.cpf_dataSize = 0;
 
-        const fragmentIndices = [nextFragment];
-        for (let i = 1; i < fragments.length; i++) {
-          const j = (nextFragment + i) % 0xffff;
-          fragment = fragments[j];
-          if (fragment) {
-            fragmentIndices.push(j);
-            fragment.copy(data, dataSize);
-            dataSize += fragment.length;
+      this.cpf_dataWithoutHeader = Buffer.allocUnsafe(this.cpf_totalSize);
+      this.cpf_processedFragmentsSequences = [];
+      this.has_cpf = true;
+    }
+    for (
+      let i = this.cpf_processedFragmentsSequences.length;
+      i < this._appDataMap.size;
+      i++
+    ) {
+      const fragmentSequence = (firstPacketSequence + i) % MAX_SEQUENCE;
+      const fragment = this._appDataMap.get(fragmentSequence);
+      if (fragment) {
+        const isFirstPacket = fragmentSequence === firstPacketSequence;
+        this.cpf_processedFragmentsSequences.push(fragmentSequence);
+        fragment.payload.copy(
+          this.cpf_dataWithoutHeader,
+          this.cpf_dataSize,
+          isFirstPacket ? DATA_HEADER_SIZE : 0
+        );
+        const fragmentDataLen = isFirstPacket
+          ? fragment.payload.length - 4
+          : fragment.payload.length;
+        this.cpf_dataSize += fragmentDataLen;
 
-            if (dataSize > totalSize) {
-              throw (
-                "processDataFragments: offset > totalSize: " +
-                dataSize +
+        if (this.cpf_dataSize > this.cpf_totalSize) {
+          this.emit(
+            "error",
+            new Error(
+              "processDataFragments: offset > totalSize: " +
+                this.cpf_dataSize +
                 " > " +
-                totalSize +
+                this.cpf_totalSize +
                 " (sequence " +
-                j +
+                fragmentSequence +
                 ") (fragment length " +
-                fragment.length +
+                fragment.payload.length +
                 ")"
-              );
-            }
-            if (dataSize === totalSize) {
-              for (k = 0; k < fragmentIndices.length; k++) {
-                fragments[fragmentIndices[k]] = null;
-              }
-              this._lastProcessedFragment = j;
-              appData = parseChannelPacketData(data);
-              break;
-            }
-          } else {
-            break;
-          }
+            )
+          );
         }
+        if (this.cpf_dataSize === this.cpf_totalSize) {
+          // Delete all the processed fragments from memory
+          for (
+            let k = 0;
+            k < this.cpf_processedFragmentsSequences.length;
+            k++
+          ) {
+            this._appDataMap.delete(this.cpf_processedFragmentsSequences[k]);
+          }
+          this._lastProcessedSequence = fragmentSequence;
+          this.has_cpf = false;
+          // process the full reassembled data
+          return parseChannelPacketData(this.cpf_dataWithoutHeader);
+        }
+      } else {
+        return []; // the full data hasn't been received yet
       }
     }
+    return []; // if somehow there is no fragments in memory
+  }
 
-    if (appData.length) {
-      for (let i = 0; i < appData.length; i++) {
-        data = appData[i];
-        if (this._useEncryption) {
-          // sometimes there's an extra 0x00 byte in the beginning that trips up the RC4 decyption
-          if (data.length > 1 && data.readUInt16LE(0) === 0) {
-            this._rc4.write(data.slice(1));
-          } else {
-            this._rc4.write(data);
-          }
-          data = this._rc4.read();
-        }
-        this.emit("data", null, data);
+  private _processData(): void {
+    const nextFragmentSequence =
+      (this._lastProcessedSequence + 1) & MAX_SEQUENCE;
+    const dataToProcess = this._appDataMap.get(nextFragmentSequence);
+    if (dataToProcess) {
+      let appData: Array<Buffer> = [];
+
+      if (dataToProcess.isFragment) {
+        appData = this.processFragmentedData(nextFragmentSequence);
+      } else {
+        appData = this.processSingleData(dataToProcess, nextFragmentSequence);
       }
-      setTimeout(() => {
-        this._processDataFragments();
-      }, 0);
+      if (appData.length) {
+        this.processAppData(appData);
+        // In case there is more data to process
+        // It can happen when packets are received out of order
+        this._processData();
+      }
     }
   }
 
-  write(data: Buffer, sequence: number, fragment: any): void {
-    if (this._nextSequence === -1) {
-      this._nextSequence = sequence;
+  private processAppData(appData: Array<Buffer>) {
+    for (let i = 0; i < appData.length; i++) {
+      let data = appData[i];
+      if (this._useEncryption) {
+        // sometimes there's an extra 0x00 byte in the beginning that trips up the RC4 decyption
+        if (data.length > 1 && data.readUInt16LE(0) === 0) {
+          data = Buffer.from(this._rc4.encrypt(data.slice(1)));
+        } else {
+          data = Buffer.from(this._rc4.encrypt(data));
+        }
+      }
+      this.emit("appdata", data); // sending appdata to application
     }
-    debug(
-      "Writing " + data.length + " bytes, sequence " + sequence,
-      " fragment=" + fragment + ", lastAck: " + this._lastAck
-    );
-    this._fragments[sequence] = data;
-    if (!fragment) {
-      this._fragments[sequence].singlePacket = true;
-    }
+  }
 
-    //debug(sequence, this._nextSequence);
-    if (sequence > this._nextSequence) {
+  private acknowledgeInputData(sequence: number): boolean {
+    if (sequence > this._nextSequence.get()) {
       debug(
         "Sequence out of order, expected " +
-          this._nextSequence +
+          this._nextSequence.get() +
           " but received " +
           sequence
       );
-      this.emit("outoforder", null, this._nextSequence, sequence);
+      // acknowledge that we receive this sequence but do not process it
+      // until we're back in order
+      this.emit("outOfOrder", sequence);
+      return false;
     } else {
       let ack = sequence;
-      for (let i = 1; i < this._sequences.length; i++) {
-        const j = (this._lastAck + i) & 0xffff;
-        if (this._fragments[j]) {
-          ack = j;
+      for (let i = 1; i < MAX_SEQUENCE; i++) {
+        // TODO: check if MAX_SEQUENCE + 1 is the right value
+        const fragmentIndex = (this._lastAck.get() + i) & MAX_SEQUENCE;
+        if (this._appDataMap.has(fragmentIndex)) {
+          ack = fragmentIndex;
         } else {
           break;
         }
       }
-      if (ack > this._lastAck) {
-        this._lastAck = ack;
-        this.emit("ack", null, ack);
-      }
-      this._nextSequence = (this._lastAck + 1) & 0xffff;
+      // all sequences behind lastAck are acknowledged
+      this._lastAck.set(ack);
+      return true;
+    }
+  }
 
-      this._processDataFragments();
+  write(data: Buffer, sequence: number, isFragment: boolean): void {
+    debug(
+      "Writing " + data.length + " bytes, sequence " + sequence,
+      " fragment=" + isFragment + ", lastAck: " + this._lastAck.get()
+    );
+    if (sequence >= this._nextSequence.get()) {
+      this._appDataMap.set(sequence, { payload: data, isFragment: isFragment });
+      const wasInOrder = this.acknowledgeInputData(sequence);
+      if (wasInOrder) {
+        this._nextSequence.set(this._lastAck.get() + 1);
+        this._processData();
+      }
     }
   }
 
@@ -169,48 +209,44 @@ export class SOEInputStream extends EventEmitter {
   }
 }
 
-function ZeroBuffer(length: number): Buffer {
-  const buffer: Buffer = new (Buffer as any).alloc(length);
-  for (let i = 0; i < length; i++) {
-    buffer[i] = 0;
-  }
-  return buffer;
-}
-
 function readDataLength(
   data: Buffer,
   offset: number
-): { value: number; numBytes: number } {
-  let dataLength = data.readUInt8(offset),
-    n;
-  if (dataLength === 0xff) {
-    if (data[offset + 1] === 0xff && data[offset + 2] === 0xff) {
-      dataLength = data.readUInt32BE(offset + 3);
-      n = 7;
+): { length: number; sizeValueBytes: number } {
+  let length = data.readUInt8(offset),
+    sizeValueBytes;
+  if (length === MAX_UINT8) {
+    // if length is MAX_UINT8 then it's maybe a bigger number
+    if (data[offset + 1] === MAX_UINT8 && data[offset + 2] === MAX_UINT8) {
+      // it's an uint32
+      length = data.readUInt32BE(offset + 3);
+      sizeValueBytes = 7;
     } else {
-      dataLength = data.readUInt16BE(offset + 1);
-      n = 3;
+      // it's an uint16
+      length = data.readUInt16BE(offset + 1);
+      sizeValueBytes = 3;
     }
   } else {
-    n = 1;
+    sizeValueBytes = 1;
   }
   return {
-    value: dataLength,
-    numBytes: n,
+    length,
+    sizeValueBytes
   };
 }
 
-function parseChannelPacketData(data: Buffer): any {
-  let appData: any = [],
+function parseChannelPacketData(data: Buffer): Array<Buffer> {
+  let appData: Array<Buffer> = [],
     offset,
     dataLength;
   if (data[0] === 0x00 && data[1] === 0x19) {
+    // if it's a DataFragment packet
     offset = 2;
     while (offset < data.length) {
       dataLength = readDataLength(data, offset);
-      offset += dataLength.numBytes;
-      appData.push(data.slice(offset, offset + dataLength.value));
-      offset += dataLength.value;
+      offset += dataLength.sizeValueBytes;
+      appData.push(data.slice(offset, offset + dataLength.length));
+      offset += dataLength.length;
     }
   } else {
     appData = [data];

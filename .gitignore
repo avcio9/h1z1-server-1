@@ -2,3 +2,7 @@ node_modules
 .idea
 out
 tests_out
+benchmarks_out
+bin/*.exe
+.vs
+config.yaml

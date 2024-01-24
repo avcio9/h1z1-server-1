@@ -2,7 +2,8 @@
 //
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
-//   copyright (c) 2021 Quentin Gruber
+//   copyright (C) 2020 - 2021 Quentin Gruber
+//   copyright (C) 2021 - 2024 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -10,7 +11,12 @@
 //   Based on https://github.com/psemu/soe-network
 // ======================================================================
 
+import { PacketStructures } from "types/packetStructure";
 import PacketTableBuild from "../../packettable";
+import {
+  itemDefinitionSchema,
+  loadoutSlotData
+} from "../../ClientProtocol/ClientProtocol_1080/shared";
 
 const serverField: any[] = [
   { name: "serverId", type: "uint32" },
@@ -22,13 +28,50 @@ const serverField: any[] = [
   { name: "descriptionId", type: "uint32" },
   { name: "reqFeatureId", type: "uint32" },
   { name: "serverInfo", type: "string" },
-  { name: "populationLevel", type: "uint32" },
+  // The "populationNumber" dword was split into 2 uint16s to show server population numbers on the main menu -Meme
+  { name: "populationNumber", type: "uint16", defaultValue: 0 },
+  { name: "maxPopulationNumber", type: "uint16", defaultValue: 1 },
   { name: "populationData", type: "string" },
   { name: "AccessExpression", type: "string", defaultValue: "" },
-  { name: "allowedAccess", type: "boolean" },
+  { name: "allowedAccess", type: "boolean" }
 ];
 
-const packets: any[] = [
+export const applicationDataJS2016 = [
+  { name: "serverAddress", type: "string" },
+  { name: "serverTicket", type: "string" },
+  { name: "encryptionKey", type: "byteswithlength" },
+  { name: "encryptionType", type: "uint32", defaultValue: 3 },
+  { name: "guid", type: "uint64string" },
+  {
+    name: "unknownQword1",
+    type: "uint64string",
+    defaultValue: "0x0000000000000000"
+  },
+  { name: "unknownString1", type: "string", defaultValue: "" },
+  { name: "unknownString2", type: "string", defaultValue: "" },
+  { name: "unknownString3", type: "string", defaultValue: "" },
+  {
+    name: "serverFeatureBit",
+    type: "uint64string",
+    defaultValue: "0x0000000000000000"
+  }
+];
+
+export const applicationDataKOTK = [
+  {
+    name: "unknownByte1",
+    type: "uint8",
+    defaultValue: 0
+  },
+  {
+    name: "unknownByte2",
+    type: "uint8",
+    defaultValue: 0
+  },
+  ...applicationDataJS2016
+];
+
+const packets: PacketStructures = [
   [
     "LoginRequest",
     0x01,
@@ -39,9 +82,9 @@ const packets: any[] = [
         { name: "Locale", type: "uint32", defaultValue: 0 },
         { name: "ThirdPartyAuthTicket", type: "uint32", defaultValue: 0 },
         { name: "ThirdPartyUserId", type: "uint32", defaultValue: 0 },
-        { name: "ThirdPartyId", type: "uint32", defaultValue: 0 },
-      ],
-    },
+        { name: "ThirdPartyId", type: "uint32", defaultValue: 0 }
+      ]
+    }
   ],
   [
     "LoginReply",
@@ -50,26 +93,58 @@ const packets: any[] = [
       fields: [
         { name: "loggedIn", type: "boolean" },
         { name: "status", type: "uint32" },
+        { name: "resultCode", type: "uint32" },
         { name: "isMember", type: "boolean" },
         { name: "isInternal", type: "boolean" },
         { name: "namespace", type: "string" },
-        { name: "ApplicationPayload", type: "byteswithlength" },
-      ],
-    },
+        {
+          name: "accountFeatures",
+          type: "array",
+          fields: [
+            { name: "key", type: "uint32" },
+            {
+              name: "accountFeature",
+              type: "schema",
+              fields: [
+                { name: "id", type: "uint32" },
+                { name: "active", type: "boolean" },
+                { name: "remainingCount", type: "uint32" },
+                { name: "rawData", type: "string" }
+              ]
+            }
+          ]
+        },
+        {
+          name: "applicationPayload",
+          type: "byteswithlength",
+          defaultValue: 0
+        },
+        {
+          name: "errorDetails",
+          type: "array",
+          fields: [
+            { name: "unknownDword1", type: "uint32" },
+            { name: "name", type: "string" },
+            { name: "value", type: "string" }
+          ]
+        },
+        { name: "ipCountryCode", type: "string" }
+      ]
+    }
   ],
   [
     "Logout",
     0x03,
     {
-      fields: [],
-    },
+      fields: []
+    }
   ],
   [
     "ForceDisconnect",
     0x04,
     {
-      fields: [],
-    },
+      fields: []
+    }
   ],
   [
     "CharacterCreateRequest",
@@ -86,11 +161,11 @@ const packets: any[] = [
             { name: "headType", type: "uint32" },
             { name: "profileType", type: "uint32" },
             { name: "gender", type: "uint32" },
-            { name: "characterName", type: "string" },
-          ],
-        },
-      ],
-    },
+            { name: "characterName", type: "string" }
+          ]
+        }
+      ]
+    }
   ],
   [
     "CharacterCreateReply",
@@ -98,16 +173,16 @@ const packets: any[] = [
     {
       fields: [
         { name: "status", type: "uint32" },
-        { name: "characterId", type: "uint64" },
-      ],
-    },
+        { name: "characterId", type: "uint64string" }
+      ]
+    }
   ],
   [
     "CharacterLoginRequest",
     0x07,
     {
       fields: [
-        { name: "characterId", type: "uint64" },
+        { name: "characterId", type: "uint64string" },
         { name: "serverId", type: "uint32" },
         { name: "status", type: "uint32", defaultValue: 0 },
         {
@@ -116,62 +191,53 @@ const packets: any[] = [
           fields: [
             { name: "locale", type: "string" },
             { name: "localeId", type: "uint32" },
-            { name: "preferredGatewayId", type: "uint32" },
-          ],
-        },
-      ],
-    },
+            { name: "preferredGatewayId", type: "uint32" }
+          ]
+        }
+      ]
+    }
   ],
   [
     "CharacterLoginReply",
     0x08,
     {
       fields: [
-        { name: "unknownQword1", type: "uint64" },
+        { name: "unknownQword1", type: "uint64string" },
         { name: "unknownDword1", type: "uint32" },
         { name: "unknownDword2", type: "uint32" },
         { name: "status", type: "uint32" },
         {
           name: "applicationData",
           type: "byteswithlength",
-          fields: [
-            { name: "serverAddress", type: "string" },
-            { name: "serverTicket", type: "string" },
-            { name: "encryptionKey", type: "byteswithlength" },
-            { name: "guid", type: "uint64" },
-            { name: "unknownQword2", type: "uint64" },
-            { name: "stationName", type: "string" },
-            { name: "characterName", type: "string" },
-            { name: "unknownString", type: "string" },
-          ],
-        },
-      ],
-    },
+          fields: applicationDataJS2016 // default
+        }
+      ]
+    }
   ],
   [
     "CharacterDeleteRequest",
     0x09,
     {
-      fields: [{ name: "characterId", type: "uint64" }],
-    },
+      fields: [{ name: "characterId", type: "uint64string" }]
+    }
   ],
   [
     "CharacterDeleteReply",
     0x0a,
     {
       fields: [
-        { name: "characterId", type: "uint64" },
+        { name: "characterId", type: "uint64string" },
         { name: "status", type: "uint32" },
-        { name: "Payload", type: "string" },
-      ],
-    },
+        { name: "Payload", type: "string" }
+      ]
+    }
   ],
   [
     "CharacterSelectInfoRequest",
     0x0b,
     {
-      fields: [],
-    },
+      fields: []
+    }
   ],
   [
     "CharacterSelectInfoReply",
@@ -184,202 +250,69 @@ const packets: any[] = [
           name: "characters",
           type: "array",
           fields: [
-            { name: "characterId", type: "uint64" },
-            { name: "serverId", type: "uint32" },
-            { name: "lastLoginDate", type: "uint64" },
-            { name: "nullField", type: "uint32" },
-            { name: "status", type: "uint32" },
+            { name: "characterId", type: "uint64string" },
+            { name: "serverId", type: "uint32", defaultValue: 1 },
+            { name: "lastLoginDate", type: "uint64string", defaultValue: "" },
+            { name: "nullField", type: "uint32", defaultValue: 0 },
+            { name: "status", type: "uint32", defaultValue: 1 },
             {
               name: "payload",
               type: "byteswithlength",
               fields: [
                 { name: "name", type: "string" },
-                { name: "empireId", type: "uint8" },
-                { name: "battleRank", type: "uint32" },
-                { name: "nextBattleRankPercent", type: "uint32" },
-                { name: "headId", type: "uint32" },
-                { name: "modelId", type: "uint32" },
-                { name: "gender", type: "uint32" },
-                { name: "profileId", type: "uint32" },
-                { name: "unknownDword1", type: "uint32" },
+                { name: "empireId", type: "uint8", defaultValue: 0 },
+                { name: "battleRank", type: "uint32", defaultValue: 0 },
                 {
-                  name: "loadoutData",
-                  type: "schema",
+                  name: "nextBattleRankPercent",
+                  type: "uint32",
+                  defaultValue: 0
+                },
+                { name: "headId", type: "uint32", defaultValue: 0 },
+                { name: "modelId", type: "uint32", defaultValue: 0 },
+                { name: "gender", type: "uint32", defaultValue: 0 },
+                { name: "profileId", type: "uint32", defaultValue: 0 },
+                { name: "unknownDword1", type: "uint32", defaultValue: 0 },
+                { name: "unknownDword2", type: "uint32", defaultValue: 0 },
+                {
+                  name: "loadoutSlots",
+                  type: "array",
+                  defaultValue: [],
                   fields: [
-                    { name: "loadoutId", type: "uint32" },
-                    {
-                      name: "unknownData1",
-                      type: "schema",
-                      fields: [
-                        { name: "unknownDword1", type: "uint32" },
-                        { name: "unknownByte1", type: "uint8" },
-                      ],
-                    },
-                    { name: "unknownDword1", type: "uint32" },
-                    {
-                      name: "unknownData2",
-                      type: "schema",
-                      fields: [
-                        { name: "unknownDword1", type: "uint32" },
-                        { name: "loadoutName", type: "string" },
-                      ],
-                    },
-                    { name: "tintItemId", type: "uint32" },
-                    { name: "unknownDword2", type: "uint32" },
-                    { name: "decalItemId", type: "uint32" },
-                    {
-                      name: "loadoutSlots",
-                      type: "array",
-                      fields: [
-                        { name: "slotId", type: "uint32" },
-                        {
-                          name: "loadoutSlotData",
-                          type: "schema",
-                          fields: [
-                            { name: "index", type: "uint32" },
-                            {
-                              name: "unknownData1",
-                              type: "schema",
-                              fields: [
-                                { name: "itemLineId", type: "uint32" },
-                                { name: "flags", type: "uint8" },
-                                {
-                                  name: "attachments",
-                                  type: "array",
-                                  fields: [
-                                    { name: "attachmentId", type: "uint32" },
-                                  ],
-                                },
-                                {
-                                  name: "attachmentClasses",
-                                  type: "array",
-                                  fields: [
-                                    { name: "classId", type: "uint32" },
-                                    { name: "attachmentId", type: "uint32" },
-                                  ],
-                                },
-                              ],
-                            },
-                            { name: "tintItemId", type: "uint32" },
-                            { name: "itemSlot", type: "uint32" },
-                          ],
-                        },
-                      ],
-                    },
-                  ],
+                    { name: "hotbarSlotId", type: "uint32", defaultValue: 0 },
+                    ...loadoutSlotData
+                  ]
                 },
                 {
                   name: "itemDefinitions",
                   type: "array",
+                  defaultValue: [],
                   fields: [
-                    { name: "itemId", type: "uint32" },
+                    { name: "ID", type: "uint32", defaultValue: "" },
                     {
                       name: "itemDefinitionData",
                       type: "schema",
+                      defaultValue: {},
                       fields: [
-                        { name: "itemId", type: "uint32" },
-                        { name: "flags", type: "uint16" },
-                        { name: "nameId", type: "uint32" },
-                        { name: "descriptionId", type: "uint32" },
-                        { name: "unknownDword1", type: "uint32" },
-                        { name: "iconId", type: "uint32" },
-                        { name: "unknownDword2", type: "uint32" },
-                        { name: "hudImageSetId", type: "uint32" },
-                        { name: "unknownDword3", type: "uint32" },
-                        { name: "unknownDword4", type: "uint32" },
-                        { name: "cost", type: "uint32" },
-                        { name: "itemClass", type: "uint32" },
-                        { name: "unknownDword5", type: "uint32" },
-                        { name: "itemSlot", type: "uint32" },
-                        { name: "slotOverrideKey", type: "uint32" },
-                        { name: "unknownDword6", type: "uint8" },
-                        { name: "modelName", type: "string" },
-                        { name: "unknownString1", type: "string" },
-                        { name: "unknownByte1", type: "uint8" },
-                        { name: "itemType", type: "uint32" },
-                        { name: "categoryId", type: "uint32" },
-                        { name: "unknownDword7", type: "uint32" },
-                        { name: "unknownDword8", type: "uint32" },
-                        { name: "unknownDword9", type: "uint32" },
-                        { name: "unknownDword10", type: "uint32" },
-                        { name: "unknownDword11", type: "uint32" },
-                        { name: "activatableAbilityId", type: "uint32" },
-                        { name: "passiveAbilityId", type: "uint32" },
-                        { name: "unknownDword12", type: "uint32" },
-                        { name: "maxStackSize", type: "uint32" },
-                        { name: "tintName", type: "string" },
-                        { name: "unknownDword13", type: "uint32" },
-                        { name: "unknownDword14", type: "uint32" },
-                        { name: "unknownDword15", type: "uint32" },
-                        { name: "unknownDword16", type: "uint32" },
-                        { name: "uiModelCamera", type: "uint32" },
-                        { name: "equipCountMax", type: "uint32" },
-                        { name: "currencyType", type: "uint32" },
-                        { name: "unknownDword17", type: "uint32" },
-                        { name: "clientItemType", type: "uint32" },
-                        { name: "skillSetId", type: "uint32" },
-                        { name: "overlayTexture", type: "string" },
-                        { name: "decalSlot", type: "string" },
-                        { name: "unknownDword18", type: "uint32" },
-                        { name: "trialDurationSec", type: "uint32" },
-                        { name: "trialExclusionSec", type: "uint32" },
-                        { name: "clientUseRequirementId", type: "uint32" },
-                        { name: "overrideAppearance", type: "string" },
-                        { name: "unknownDword19", type: "uint32" },
-                        { name: "clientUseRequirementId2", type: "uint32" },
-                      ],
-                    },
-                  ],
+                        { name: "ID", type: "uint32", defaultValue: "" },
+                        ...itemDefinitionSchema
+                      ]
+                    }
+                  ]
                 },
-                {
-                  name: "attachmentDefinitions",
-                  type: "array",
-                  fields: [
-                    { name: "attachmentId", type: "uint32" },
-                    {
-                      name: "attachmentData",
-                      type: "schema",
-                      fields: [
-                        { name: "attachmentId", type: "uint32" },
-                        { name: "groupId", type: "uint32" },
-                        { name: "itemLineId", type: "uint32" },
-                        {
-                          name: "flags",
-                          type: "bitflags",
-                          flags: [
-                            { bit: 0, name: "bit0" },
-                            { bit: 1, name: "bit1" },
-                            { bit: 2, name: "bit2" },
-                            { bit: 3, name: "bit3" },
-                            { bit: 4, name: "bit4" },
-                            { bit: 5, name: "bit5" },
-                            { bit: 6, name: "bit6" },
-                            { bit: 7, name: "required" },
-                          ],
-                        },
-                        {
-                          name: "classes",
-                          type: "array",
-                          elementType: "uint32",
-                        },
-                      ],
-                    },
-                  ],
-                },
-                { name: "lastUseDate", type: "uint64" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
+                { name: "lastUseDate", type: "uint64string", defaultValue: "" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
   ],
   [
     "ServerListRequest",
     0x0d,
     {
-      fields: [],
-    },
+      fields: []
+    }
   ],
   [
     "ServerListReply",
@@ -389,17 +322,17 @@ const packets: any[] = [
         {
           name: "servers",
           type: "array",
-          fields: serverField,
-        },
-      ],
-    },
+          fields: serverField
+        }
+      ]
+    }
   ],
   [
     "ServerUpdate",
     0x0f,
     {
-      fields: serverField,
-    },
+      fields: serverField
+    }
   ],
   [
     "TunnelAppPacketClientToServer",
@@ -407,19 +340,66 @@ const packets: any[] = [
     {
       fields: [
         { name: "unknown", type: "string" },
-        { name: "data", type: "string" },
-      ],
-    },
+        { name: "data", type: "string" }
+      ]
+    }
   ],
   [
     "TunnelAppPacketServerToClient",
     0x11,
     {
-      fields: [{ name: "unknown1", type: "boolean" }],
-    },
+      fields: [{ name: "unknown1", type: "boolean" }]
+    }
   ],
   ["CharacterTransferRequest", 0x12, {}],
   ["CharacterTransferReply", 0x13, {}],
+
+  // __opcode__ is used since loginserver opcodes are only a byte serverside and I don't feel like fixing that -Meme
+  [
+    "H1emu.PrintToConsole",
+    0x20,
+    {
+      fields: [
+        { name: "__opcode__", type: "uint8", defaultValue: 1 },
+        { name: "message", type: "string", defaultValue: "" },
+        { name: "showConsole", type: "boolean", defaultValue: false },
+        { name: "clearOutput", type: "boolean", defaultValue: false }
+      ]
+    }
+  ],
+  [
+    "H1emu.MessageBox",
+    0x21,
+    {
+      fields: [
+        { name: "__opcode__", type: "uint8", defaultValue: 2 },
+        { name: "title", type: "string", defaultValue: "" },
+        { name: "message", type: "string", defaultValue: "" }
+      ]
+    }
+  ],
+  [
+    "H1emu.HadesInit",
+    0x22,
+    {
+      fields: [
+        { name: "__opcode__", type: "uint8", defaultValue: 3 },
+        { name: "authTicket", type: "string", defaultValue: "" },
+        { name: "gatewayServer", type: "string", defaultValue: "" }
+      ]
+    }
+  ],
+  [
+    "H1emu.HadesQuery",
+    0x23,
+    {
+      fields: [
+        { name: "__opcode__", type: "uint8", defaultValue: 4 },
+        { name: "authTicket", type: "string", defaultValue: "" },
+        { name: "gatewayServer", type: "string", defaultValue: "" }
+      ]
+    }
+  ]
 ];
 
 export const [packetTypes, packetDescriptors] = PacketTableBuild(packets);

@@ -2,7 +2,8 @@
 //
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
-//   copyright (c) 2021 Quentin Gruber
+//   copyright (C) 2020 - 2021 Quentin Gruber
+//   copyright (C) 2021 - 2024 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -10,129 +11,141 @@
 //   Based on https://github.com/psemu/soe-network
 // ======================================================================
 
-import { EventEmitter } from "events";
+import { EventEmitter } from "node:events";
 import { SOEServer } from "../SoeServer/soeserver";
-import { GatewayProtocol } from "../../protocols/gatewayprotocol";
-import {
-  Client,
-  GatewayProtocolInterface,
-  SoeServer,
-} from "../../types/gatewayserver";
+import { GatewayProtocol } from "h1emu-core";
+import SOEClient from "../SoeServer/soeclient";
+import { crc_length_options } from "../../types/soeserver";
+import { SOEOutputChannels } from "servers/SoeServer/soeoutputstream";
 
 const debug = require("debug")("GatewayServer");
 
 export class GatewayServer extends EventEmitter {
-  _soeServer: SoeServer;
-  _protocol: GatewayProtocolInterface;
-  _compression: number;
-  _crcSeed: number;
-  _crcLength: number;
-  _udpLength: number;
+  private _soeServer: SOEServer;
+  private _protocol: GatewayProtocol;
+  private _crcLength: crc_length_options;
+  private _udpLength: number;
 
-  constructor(
-    protocolName: string,
-    serverPort: number,
-    gatewayKey: Uint8Array
-  ) {
+  constructor(serverPort: number, gatewayKey: Uint8Array) {
     super();
-    this._compression = 0x0000;
-    this._crcSeed = 0;
     this._crcLength = 2;
     this._udpLength = 512;
 
-    this._soeServer = new SOEServer(
-      protocolName,
-      serverPort,
-      gatewayKey,
-      this._compression,
-      true
-    ) as any; // as any since SOEServer isn't typed
-    this._protocol = new GatewayProtocol() as GatewayProtocolInterface;
-    this._soeServer.on("connect", (err: string, client: Client) => {
-      debug("Client connected from " + client.address + ":" + client.port);
-      this.emit("connect", err, client);
-    });
-    this._soeServer.on("disconnect", (err: string, client: Client) => {
+    this._soeServer = new SOEServer(serverPort, gatewayKey);
+    this._soeServer._useEncryption = false; // communication is encrypted only after loginRequest
+    this._soeServer.keepAliveTimeoutTime = 20000; // On zone a client expire after 20s without activity
+    this._protocol = new GatewayProtocol();
+    this._soeServer.on("disconnect", (client: SOEClient) => {
       debug("Client disconnected from " + client.address + ":" + client.port);
-      this.emit("disconnect", err, client);
-    });
-    this._soeServer.on("session", (err: string, client: Client) => {
-      debug("Session started for client " + client.address + ":" + client.port);
+      this.emit("disconnect", client.sessionId);
     });
 
     this._soeServer.on(
       "appdata",
-      (err: string, client: Client, data: Buffer) => {
-        const packet = this._protocol.parse(data);
-        if ((packet as any) !== false && packet !== undefined) {
-          const result = packet.result;
-          switch (packet.name) {
-            case "LoginRequest":
-              this._soeServer.toggleEncryption(client);
-              this._soeServer.sendAppData(
-                client,
-                this._protocol.pack("LoginReply", { loggedIn: true }),
-                true
-              );
-
-              if (result && result.characterId) {
-                setImmediate(() => {
+      (client: SOEClient, data: Uint8Array, isRawData: boolean) => {
+        if (isRawData) {
+          this.emit("tunneldata", client, data, 0);
+          return;
+        }
+        try {
+          const packet = JSON.parse(this._protocol.parse(data));
+          if (packet) {
+            switch (packet.name) {
+              case "LoginRequest":
+                if (packet.character_id) {
+                  this._soeServer.setEncryption(client, true);
+                  const appData = this._protocol.pack_login_reply_packet(true);
+                  if (appData) {
+                    this._soeServer.sendAppData(client, appData);
+                  }
                   this.emit(
                     "login",
-                    null,
-                    client,
-                    result.characterId,
-                    result.ticket
+                    client.soeClientId,
+                    packet.character_id,
+                    packet.ticket,
+                    packet.client_protocol
                   );
-                });
-              }
-              break;
-            case "Logout":
-              debug("Logout");
-              this.emit("logout", null, client);
-              break;
-            case "TunnelPacketFromExternalConnection":
-              debug("TunnelPacketFromExternalConnection");
-              this.emit(
-                "tunneldata",
-                null,
-                client,
-                packet.tunnelData,
-                packet.flags
-              );
-              break;
+                }
+                break;
+              case "Logout":
+                debug("Logout gateway");
+                this.emit("disconnect", client.sessionId);
+                break;
+              case "TunnelPacket":
+                this.emit(
+                  "tunneldata",
+                  client.sessionId,
+                  Buffer.from(packet.tunnel_data),
+                  packet.channel
+                );
+                break;
+            }
+          } else {
+            console.log(`Unsupported gateway packet ${packet.name}`);
+            console.log(packet);
           }
-        } else {
-          debug("Packet parsing was unsuccesful");
+        } catch (e) {
+          console.error("Gateway: packet parsing failed");
+          console.log(data);
+          console.log(e);
         }
       }
     );
-    this.on("logout", (err: string, client: Client) => {
-      this._soeServer.deleteClient(client);
-    });
+  }
+
+  getSoeClientAvgPing(soeClientId: string): number | undefined {
+    return this._soeServer.getSoeClient(soeClientId)?.avgPing;
+  }
+
+  getSoeClientNetworkStats(soeClientId: string): string[] | undefined {
+    return this._soeServer.getSoeClient(soeClientId)?.getNetworkStats();
+  }
+
+  getSoeClientSessionId(soeClientId: string): number | undefined {
+    return this._soeServer.getSoeClient(soeClientId)?.sessionId;
+  }
+
+  getSoeClientNetworkInfos(
+    soeClientId: string
+  ): { address: string; port: number } | undefined {
+    const client = this._soeServer.getSoeClient(soeClientId);
+    if (client) {
+      return { address: client.address, port: client.port };
+    }
+  }
+
+  deleteSoeClient(soeClientId: string) {
+    const soeClient = this._soeServer.getSoeClient(soeClientId);
+    if (soeClient) {
+      this._soeServer.deleteClient(soeClient);
+    }
   }
 
   start() {
     debug("Starting server");
-    this._soeServer.start(
-      this._compression,
-      this._crcSeed,
-      this._crcLength,
-      this._udpLength
-    );
+    this._soeServer.start(this._crcLength, this._udpLength);
   }
 
-  sendTunnelData(client: Client, tunnelData: any, channel = 0) {
+  sendTunnelData(
+    soeClientId: string,
+    tunnelData: Buffer,
+    channel: SOEOutputChannels
+  ) {
     debug("Sending tunnel data to client");
-    const data = this._protocol.pack("TunnelPacketToExternalConnection", {
-      channel: channel,
-      tunnelData: tunnelData,
-    });
-    (this._soeServer.sendAppData as any)(client, data);
+    const data = this._protocol.pack_tunnel_data_packet_for_client(
+      tunnelData,
+      0
+    );
+    if (data) {
+      const client = this._soeServer.getSoeClient(soeClientId);
+      if (client) {
+        this._soeServer.sendAppData(client, data, channel);
+      }
+    }
   }
 
-  stop() {
-    debug("Shutting down");
-    process.exit(0);
+  async stop() {
+    debug("Stopping server");
+    await this._soeServer.stop();
   }
 }

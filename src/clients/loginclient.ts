@@ -2,7 +2,8 @@
 //
 //   GNU GENERAL PUBLIC LICENSE
 //   Version 3, 29 June 2007
-//   copyright (c) 2021 Quentin Gruber
+//   copyright (C) 2020 - 2021 Quentin Gruber
+//   copyright (C) 2021 - 2024 H1emu community
 //
 //   https://github.com/QuentinGruber/h1z1-server
 //   https://www.npmjs.com/package/h1z1-server
@@ -10,10 +11,11 @@
 //   Based on https://github.com/psemu/soe-network
 // ======================================================================
 
-import { EventEmitter } from "events";
+import { EventEmitter } from "node:events";
 
 import { SOEClient } from "./soeclient";
 import { LoginProtocol } from "../protocols/loginprotocol";
+
 const loginProtocolName = "LoginUdp_9";
 const debug = require("debug")("LoginClient");
 
@@ -61,7 +63,7 @@ export class LoginClient extends EventEmitter {
       localPort
     );
     this._protocol = new LoginProtocol();
-    var n = 0;
+    let n = 0;
     this._soeClient.on("connect", (err: string, result: string) => {
       debug("Connected to login server");
       this.login("FiNgErPrInT");
@@ -71,7 +73,7 @@ export class LoginClient extends EventEmitter {
     });
     this._soeClient.on("appdata", (err: string, data: Buffer) => {
       n++;
-      var packet, result;
+      let packet, result;
       try {
         packet = this._protocol.parse(data);
       } catch (e) {
@@ -86,7 +88,7 @@ export class LoginClient extends EventEmitter {
           if (result.status === 1) {
             this.emit("login", null, {
               loggedIn: result.loggedIn,
-              isMember: result.isMember,
+              isMember: result.isMember
             });
           } else {
             this.emit("login", "Login failed");
@@ -104,7 +106,9 @@ export class LoginClient extends EventEmitter {
           break;
         case "CharacterCreateReply":
           if (result.status === 1) {
-            this.emit("charactercreate", null, {});
+            this.emit("charactercreate", null, {
+              characterId: result.characterId
+            });
           } else {
             this.emit("charactercreate", "Character create failed");
           }
@@ -125,7 +129,7 @@ export class LoginClient extends EventEmitter {
           break;
         case "ServerListReply":
           this.emit("serverlist", null, {
-            servers: result.servers,
+            servers: result.servers
           });
           break;
         case "ServerUpdate":
@@ -146,24 +150,11 @@ export class LoginClient extends EventEmitter {
     this._soeClient.connect();
   }
 
-  async login(fingerprint: string) {
-    async function SetupLoginRequest(
-      fingerprint: any,
-      sessionId: any,
-      protocol: any
-    ) {
-      var data = await protocol.pack("LoginRequest", {
-        sessionId: sessionId,
-        systemFingerPrint: fingerprint,
-      });
-      return data;
-    }
-
-    var data = await SetupLoginRequest(
-      fingerprint,
-      this._soeClient._sessionId.toString(),
-      this._protocol
-    );
+  login(fingerprint: string) {
+    const data = this._protocol.pack("LoginRequest", {
+      sessionId: this._soeClient._sessionId.toString(),
+      systemFingerPrint: fingerprint
+    });
     debug("Sending login request");
     this._soeClient.sendAppData(data, true);
 
@@ -176,22 +167,22 @@ export class LoginClient extends EventEmitter {
 
   requestServerList() {
     debug("Requesting server list");
-    var data = this._protocol.pack("ServerListRequest");
+    const data = this._protocol.pack("ServerListRequest");
     this._soeClient.sendAppData(data, true);
   }
 
   requestCharacterInfo() {
     debug("Requesting character info");
-    var data = this._protocol.pack("CharacterSelectInfoRequest");
+    const data = this._protocol.pack("CharacterSelectInfoRequest");
     this._soeClient.sendAppData(data, true);
   }
 
   requestCharacterLogin(characterId: string, serverId: number, payload: any) {
     debug("Requesting character login");
-    var data = this._protocol.pack("CharacterLoginRequest", {
+    const data = this._protocol.pack("CharacterLoginRequest", {
       characterId: characterId,
       serverId: serverId,
-      payload: payload,
+      payload: payload
     });
     if (data) {
       this._soeClient.sendAppData(data, true);
@@ -202,5 +193,23 @@ export class LoginClient extends EventEmitter {
 
   requestCharacterDelete = function () {};
 
-  requestCharacterCreate = function () {};
+  requestCharacterCreate() {
+    debug("Requesting character create");
+    const data = this._protocol.pack("CharacterCreateRequest", {
+      serverId: 1,
+      unknown: 0,
+      payload: {
+        empireId: 2,
+        headType: 1,
+        profileType: 3,
+        gender: 1,
+        characterName: "test"
+      }
+    });
+    if (data) {
+      this._soeClient.sendAppData(data, true);
+    } else {
+      debug("Could not pack character create request data");
+    }
+  }
 }
